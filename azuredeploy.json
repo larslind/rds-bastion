@@ -47,6 +47,16 @@
       },
       "defaultValue": "2016-Datacenter"
     },
+    "rdshimageSKU": {
+      "type": "string",
+      "allowedValues": [
+        "windows2016"
+      ],
+      "metadata": {
+        "description": "Data Science server SKU"
+      },
+      "defaultValue": "windows2016"
+    },
     "numberOfRdshInstances": {
       "type": "int",
       "defaultValue": 1,
@@ -57,29 +67,29 @@
     "rdshVmSize": {
       "type": "string",
       "allowedValues": [
-        "Standard_A0",
-        "Standard_A1",
-        "Standard_A2",
-        "Standard_A3",
-        "Standard_A4",
-        "Standard_A5",
-        "Standard_A6",
-        "Standard_A7",
-        "Standard_D1",
-        "Standard_D2",
-        "Standard_D3",
-        "Standard_D4",
-        "Standard_D5"
+        "Standard_A0_v2",
+        "Standard_A1_v2",
+        "Standard_A2_v2",
+        "Standard_A3_v2",
+        "Standard_A4_v2",
+        "Standard_A5_v2",
+        "Standard_A6_v2",
+        "Standard_A7_v2",
+        "Standard_D1_v2",
+        "Standard_D2_v2",
+        "Standard_D3_v2",
+        "Standard_D4_v2",
+        "Standard_D5_v2"
       ],
       "metadata": {
         "description": "The size of the RDSH VMs"
       },
-      "defaultValue": "Standard_A4"
+      "defaultValue": "Standard_A4_v2"
     }
   },
   "variables": {
     "adAssetLocation": "https://raw.githubusercontent.com/Azure/AzureStack-QuickStart-Templates/master/ad-non-ha",
-    "adVMSize": "Standard_A1",
+    "adVMSize": "Standard_A1_v2",
     "adVnetName": "[concat('ADVNET',resourceGroup().name)]",
     "adSubnetName": "[concat('ADStaticSubnet',resourceGroup().name)]",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('adVnetName'))]",
@@ -94,8 +104,6 @@
     "adPDCVMName": "advm",
     "vnetwithDNSTemplateURL": "[concat(variables('adAssetLocation'),'/vnet-with-dns-server.json')]",
     "updateVNetDNS1": "updateVNetDNS",
-    "updateVNetDNS1ID": "[concat('Microsoft.Resources/deployments/', variables('updateVNetDNS1'))]",
-    "nicTemplateURL": "[concat(variables('adAssetLocation'),'/nic.json')]",
     "publicLBName": "[concat('ADPLB',resourceGroup().name)]",
     "publicIPAddressID": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]",
     "lbFE": "ADLBFE",
@@ -106,7 +114,6 @@
     "adRDPNATRuleID": "[concat(variables('publiclbID'),'/inboundNatRules/',variables('rdpNAT'))]",
     "adNICName": "[concat('ADNic',resourceGroup().name)]",
     "lbBE": "ADLBBE",
-    "publicBEAddressPoolID": "[concat(variables('publiclbID'),'/backendAddressPools/',variables('lbBE'))]",
     "gwLBName": "[concat('GWPLB',resourceGroup().name)]",
     "publicIPAddressName": "[tolower(concat('adpip',uniqueString(resourceGroup().Id)))]",
     "gwIPAddressID": "[resourceId('Microsoft.Network/publicIPAddresses',parameters('gwpublicIPAddressName'))]",
@@ -121,11 +128,13 @@
     "uniqueStorageAccountContainerName": "[tolower(concat('sc', uniqueString(resourceGroup().id)))]",
     "imagePublisher": "MicrosoftWindowsServer",
     "imageOffer": "WindowsServer",
-    "vnetAddressRange": "10.0.0.0/16",
-    "subnetAddressRange": "10.0.0.0/24",
-    "dnsServerPrivateIp": "10.0.0.4",
+    "rdshimagePublisher": "microsoft-ads",
+    "rdshimageOffer": "windows-data-science-vm",
+    "vnetAddressRange": "10.8.0.0/16",
+    "subnetAddressRange": "10.8.0.0/24",
+    "dnsServerPrivateIp": "10.8.0.4",
     "subnet-id": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('adVnetName')),'/subnets/', variables('adSubnetName'))]",
-    "assetLocation": "https://raw.githubusercontent.com/Azure/azure-QuickStart-Templates/master/rds-deployment/",
+    "assetLocation": "https://raw.githubusercontent.com/larslind/rds-bastion/master/",
     "nsgName": "RDSNsg",
     "nsgID": "[resourceId('Microsoft.Network/networkSecurityGroups',variables('nsgName'))]",
     "subnets": [
@@ -150,17 +159,69 @@
       "properties": {
         "securityRules": [
           {
-            "name": "rule1",
-            "properties": {
-              "protocol": "*",
-              "sourcePortRange": "*",
-              "destinationPortRange": "*",
-              "sourceAddressPrefix": "*",
-              "destinationAddressPrefix": "*",
-              "access": "Allow",
-              "priority": 101,
-              "direction": "Inbound"
-            }
+              "name": "DenyAllInboundVNet",
+              "properties": {
+                  "protocol": "*",
+                  "sourcePortRange": "*",
+                  "destinationPortRange": "*",
+                  "sourceAddressPrefix": "VirtualNetwork",
+                  "destinationAddressPrefix": "*",
+                  "access": "Deny",
+                  "priority": 200,
+                  "direction": "Inbound"
+              }
+          },
+          {
+              "name": "AllowHTTPSInternet",
+              "properties": {
+                  "protocol": "Tcp",
+                  "sourcePortRange": "*",
+                  "destinationPortRange": "443",
+                  "sourceAddressPrefix": "Internet",
+                  "destinationAddressPrefix": "*",
+                  "access": "Allow",
+                  "priority": 110,
+                  "direction": "Inbound"
+              }
+          },
+          {
+              "name": "AllowRDPInternet",
+              "properties": {
+                  "protocol": "Tcp",
+                  "sourcePortRange": "*",
+                  "destinationPortRange": "3389",
+                  "sourceAddressPrefix": "Internet",
+                  "destinationAddressPrefix": "*",
+                  "access": "Allow",
+                  "priority": 120,
+                  "direction": "Inbound"
+              }
+          },
+          {
+              "name": "AllowRDPVnet",
+              "properties": {
+                  "protocol": "Tcp",
+                  "sourcePortRange": "*",
+                  "destinationPortRange": "3389",
+                  "sourceAddressPrefix": "VirtualNetwork",
+                  "destinationAddressPrefix": "*",
+                  "access": "Allow",
+                  "priority": 130,
+                  "direction": "Inbound"
+              }
+          },
+          {
+              "name": "AllowAllVnet",
+              "properties": {
+                  "protocol": "Tcp",
+                  "sourcePortRange": "*",
+                  "destinationPortRange": "*",
+                  "sourceAddressPrefix": "VirtualNetwork",
+                  "destinationAddressPrefix": "*",
+                  "access": "Allow",
+                  "priority": 140,
+                  "direction": "Inbound"
+              }
           }
         ]
       }
@@ -226,19 +287,25 @@
       "apiVersion": "2015-06-15",
       "type": "Microsoft.Compute/availabilitySets",
       "name": "gw-availabilityset",
-      "location": "[resourceGroup().location]"
+      "location": "[resourceGroup().location]",
+      "properties": {
+      }
     },
     {
       "apiVersion": "2015-06-15",
       "type": "Microsoft.Compute/availabilitySets",
       "name": "cb-availabilityset",
-      "location": "[resourceGroup().location]"
+      "location": "[resourceGroup().location]",
+      "properties": {
+      }
     },
     {
       "apiVersion": "2015-06-15",
       "type": "Microsoft.Compute/availabilitySets",
       "name": "rdsh-availabilityset",
-      "location": "[resourceGroup().location]"
+      "location": "[resourceGroup().location]",
+      "properties": {
+      }
     },
     {
       "name": "[variables('publiclbName')]",
@@ -271,7 +338,7 @@
               "frontendIPConfiguration": {
                 "id": "[variables('publiclbFEConfigID')]"
               },
-              "protocol": "tcp",
+              "protocol": "Tcp",
               "frontendPort": "[variables('rdpPort')]",
               "backendPort": 3389,
               "enableFloatingIP": false
@@ -373,7 +440,7 @@
               "frontendIPConfiguration": {
                 "id": "[variables('gwlbFEConfigID')]"
               },
-              "protocol": "tcp",
+              "protocol": "Tcp",
               "frontendPort": 3389,
               "backendPort": 3389,
               "enableFloatingIP": false
@@ -612,7 +679,7 @@
       ],
       "properties": {
         "hardwareProfile": {
-          "vmSize": "Standard_A2"
+          "vmSize": "Standard_A2_v2"
         },
         "availabilitySet": {
           "id": "[resourceId('Microsoft.Compute/availabilitySets', 'gw-availabilityset')]"
@@ -649,7 +716,7 @@
       "resources": [
         {
           "apiVersion": "2015-06-15",
-          "type": "Microsoft.Compute/virtualMachines/extensions",
+          "type": "extensions",
           "name": "gw-vm/gateway",
           "location": "[resourceGroup().location]",
           "dependsOn": [
@@ -681,7 +748,7 @@
       ]
     },
     {
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2016-04-30-preview",
       "type": "Microsoft.Compute/virtualMachines",
       "name": "[concat('rdsh-', copyindex())]",
       "location": "[resourceGroup().location]",
@@ -704,24 +771,26 @@
         "osProfile": {
           "computerName": "[concat('rdsh-', copyIndex())]",
           "adminUsername": "[parameters('adminUsername')]",
-          "adminPassword": "[parameters('adminPassword')]"
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVmAgent": "true"
+          }
         },
         "storageProfile": {
           "imageReference": {
-            "publisher": "[variables('imagePublisher')]",
-            "offer": "[variables('imageOffer')]",
-            "sku": "[parameters('imageSKU')]",
+            "publisher": "[variables('rdshimagePublisher')]",
+            "offer": "[variables('rdshimageOffer')]",
+            "sku": "[parameters('rdshimageSKU')]",
             "version": "latest"
           },
-          "osDisk": {
-            "name": "osdisk",
-            "vhd": {
-              "uri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName')),providers('Microsoft.Storage', 'storageAccounts').apiVersions[0]).primaryEndpoints.blob,variables('uniqueStorageAccountContainerName'),'/','rdsh-',copyindex(),'-os-disk.vhd')]"
-
+            "osDisk": {
+                "createOption": "FromImage",
+                "caching": "ReadWrite",
+                "managedDisk": {
+                    "storageAccountType": "Standard_LRS"
+                }
             },
-            "caching": "ReadWrite",
-            "createOption": "FromImage"
-          }
+            "dataDisks": []
         },
         "networkProfile": {
           "networkInterfaces": [
@@ -733,8 +802,8 @@
       },
       "resources": [
         {
-          "apiVersion": "2015-06-15",
-          "type": "Microsoft.Compute/virtualMachines/extensions",
+          "apiVersion": "2016-04-30-preview",
+          "type": "extensions",
           "name": "[concat('rdsh-', copyindex(),'/sessionhost')]",
           "location": "[resourceGroup().location]",
           "dependsOn": [
@@ -778,13 +847,13 @@
       ],
       "properties": {
         "hardwareProfile": {
-          "vmSize": "Standard_A2"
+          "vmSize": "Standard_A2_v2"
         },
         "availabilitySet": {
           "id": "[resourceId('Microsoft.Compute/availabilitySets', 'cb-availabilityset')]"
         },
         "osProfile": {
-          "computerName": "broker",
+          "computerName": "rdp",
           "adminUsername": "[parameters('adminUsername')]",
           "adminPassword": "[parameters('adminPassword')]"
         },
@@ -839,7 +908,7 @@
               "UserName": "[parameters('adminUsername')]",
               "Password": "PrivateSettingsRef:adminPassword"
             },
-            "connectionBroker": "[concat('broker.',parameters('adDomainName'))]",
+            "connectionBroker": "[concat('rdp.',parameters('adDomainName'))]",
             "domainName": "[parameters('adDomainName')]",
             "externalfqdn": "[reference(parameters('gwpublicIPAddressName')).dnsSettings.fqdn]",
             "numberOfRdshInstances": "[parameters('numberOfRdshInstances')]",
