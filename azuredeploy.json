@@ -102,7 +102,6 @@
   "variables": {
     "adAssetLocation": "https://raw.githubusercontent.com/Azure/AzureStack-QuickStart-Templates/master/ad-non-ha",
     "adVMSize": "Standard_D1_v2",
-    "adStorageAccountName": "[tolower(concat('rdsa',uniqueString(resourceGroup().id)))]",
     "adStorageAccountType": "Premium_LRS",
     "cbVMSize": "Standard_D1_v2",
     "cbStorageAccountType": "Premium_LRS",
@@ -509,7 +508,7 @@
             "value": "[variables('dnsServerPrivateIp')]"
           },
           "storageAccountType": {
-            "value": "[variables('storageAccountType')]"
+            "value": "[variables('adStorageAccountType')]"
           },
           "vmName": {
             "value": "[variables('adPDCVMName')]"
@@ -589,10 +588,10 @@
     {
       "apiVersion": "2015-06-15",
       "type": "Microsoft.Storage/storageAccounts",
-      "name": "[variables('storageAccountName')]",
+      "name": "[variables('diagStorageAccountName')]",
       "location": "[resourceGroup().location]",
       "properties": {
-        "accountType": "[variables('storageAccountType')]"
+        "accountType": "[variables('diagStorageAccountType')]"
       }
     },
     {
@@ -700,7 +699,7 @@
       "location": "[resourceGroup().location]",
       "dependsOn": [
         "[variables('deployPrimaryAdID')]",
-        "[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+        "[concat('Microsoft.Storage/storageAccounts/', variables('diagStorageAccountName'))]",
         "Microsoft.Network/networkInterfaces/gw-nic"
       ],
       "properties": {
@@ -740,7 +739,7 @@
         "diagnosticsProfile": {
           "bootDiagnostics": {
             "enabled": "true",
-            "storageUri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net')]"
+            "storageUri": "[concat('http://',variables('diagStorageAccountName'),'.blob.core.windows.net')]"
           }
         }
       },
@@ -794,7 +793,7 @@
       },
       "dependsOn": [
         "[variables('deployPrimaryAdID')]",
-        "[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+        "[concat('Microsoft.Storage/storageAccounts/', variables('diagStorageAccountName'))]",
         "[concat('Microsoft.Network/networkInterfaces/', 'rdsh-', copyindex(), '-nic')]"
       ],
       "properties": {
@@ -839,7 +838,7 @@
         "diagnosticsProfile": {
           "bootDiagnostics": {
             "enabled": "true",
-            "storageUri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net')]"
+            "storageUri": "[concat('http://',variables('diagStorageAccountName'),'.blob.core.windows.net')]"
           }
         }
       },
@@ -884,7 +883,7 @@
       "location": "[resourceGroup().location]",
       "dependsOn": [
         "[variables('deployPrimaryAdID')]",
-        "[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+        "[concat('Microsoft.Storage/storageAccounts/', variables('diagStorageAccountName'))]",
         "Microsoft.Network/networkInterfaces/cb-nic",
         "rdsh-vm-loop"
       ],
@@ -925,7 +924,7 @@
         "diagnosticsProfile": {
           "bootDiagnostics": {
             "enabled": "true",
-            "storageUri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net')]"
+            "storageUri": "[concat('http://',variables('diagStorageAccountName'),'.blob.core.windows.net')]"
           }
         }
       }
