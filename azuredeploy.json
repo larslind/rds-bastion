@@ -85,12 +85,14 @@
       "metadata": {
         "description": "The size of the RDSH VMs"
       },
-      "defaultValue": "Standard_A4_v2"
+      "defaultValue": "Standard_D2_v2"
     }
   },
   "variables": {
     "adAssetLocation": "https://raw.githubusercontent.com/Azure/AzureStack-QuickStart-Templates/master/ad-non-ha",
-    "adVMSize": "Standard_A1_v2",
+    "adVMSize": "Standard_D1_v2",
+    "cbVMSize": "Standard_D1_v2",
+    "gwVMSize": "Standard_D1_v2",
     "adVnetName": "[concat('ADVNET',resourceGroup().name)]",
     "adSubnetName": "[concat('ADStaticSubnet',resourceGroup().name)]",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('adVnetName'))]",
@@ -134,7 +136,7 @@
     "subnetAddressRange": "10.8.0.0/24",
     "dnsServerPrivateIp": "10.8.0.4",
     "subnet-id": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('adVnetName')),'/subnets/', variables('adSubnetName'))]",
-    "assetLocation": "https://raw.githubusercontent.com/larslind/rds-bastion/master/",
+    "assetLocation": "https://raw.githubusercontent.com/larslind/rds-bastion/master",
     "nsgName": "RDSNsg",
     "nsgID": "[resourceId('Microsoft.Network/networkSecurityGroups',variables('nsgName'))]",
     "subnets": [
@@ -688,7 +690,7 @@
       ],
       "properties": {
         "hardwareProfile": {
-          "vmSize": "Standard_A2_v2"
+          "vmSize": "[variables('gwVMSize')]"
         },
         "availabilitySet": {
           "id": "[resourceId('Microsoft.Compute/availabilitySets', 'gw-availabilityset')]"
@@ -707,10 +709,7 @@
           },
             "osDisk": {
                 "createOption": "FromImage",
-                "caching": "ReadWrite",
-                "managedDisk": {
-                    "storageAccountType": "Standard_LRS"
-                }
+                "caching": "ReadWrite"
             }
         },
         "networkProfile": {
@@ -770,6 +769,11 @@
         "name": "rdsh-vm-loop",
         "count": "[parameters('numberOfRdshInstances')]"
       },
+      "plan": {
+          "name": "[parameters('rdshimageSKU')]",
+          "publisher": "[variables('rdshimagePublisher')]",
+          "product": "[variables('rdshimageOffer')]"
+      },
       "dependsOn": [
         "[variables('deployPrimaryAdID')]",
         "[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
@@ -799,10 +803,7 @@
           },
             "osDisk": {
                 "createOption": "FromImage",
-                "caching": "ReadWrite",
-                "managedDisk": {
-                    "storageAccountType": "Standard_LRS"
-                }
+                "caching": "ReadWrite"
             },
             "dataDisks": []
         },
@@ -867,7 +868,7 @@
       ],
       "properties": {
         "hardwareProfile": {
-          "vmSize": "Standard_A2_v2"
+          "vmSize": "[variables('cbVMSize')]"
         },
         "availabilitySet": {
           "id": "[resourceId('Microsoft.Compute/availabilitySets', 'cb-availabilityset')]"
@@ -886,10 +887,7 @@
           },
             "osDisk": {
                 "createOption": "FromImage",
-                "caching": "ReadWrite",
-                "managedDisk": {
-                    "storageAccountType": "Standard_LRS"
-                }
+                "caching": "ReadWrite"
             }
         },
         "networkProfile": {
