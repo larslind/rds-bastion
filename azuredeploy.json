@@ -6,7 +6,8 @@
       "type": "string",
       "metadata": {
         "description": "Unique gateway public DNS prefix for the deployment. The fqdn will look something like '<dnsname>.westus.cloudapp.azure.com'. Up to 62 chars, digits or dashes, lowercase, should start with a letter: must conform to '^[a-z][a-z0-9-]{1,61}[a-z0-9]$'. For example johndns1 will result the final RDWEB access url like https://johndns1.westus.cloudapp.azure.com/RDWeb"
-      }
+      },
+      "defaultValue": "larslindrdsdemo"
     },
     "gwpublicIPAddressName": {
       "type": "string",
@@ -20,14 +21,14 @@
       "metadata": {
         "description": "The name of the AD domain. For example contoso.com"
       },
-      "defaultValue": "contoso.com"
+      "defaultValue": "larslinddemo.co.uk"
     },
     "adminUsername": {
       "type": "string",
       "metadata": {
         "description": "The name of the administrator of the new VM and the domain. Exclusion list: 'administrator'. For example johnadmin"
       },
-      "defaultValue": "vmadmin"
+      "defaultValue": "larslind"
     },
     "adminPassword": {
       "type": "securestring",
@@ -125,7 +126,6 @@
     "dnsLabelPrefix": "[tolower(concat('adns', resourceGroup().name))]",
     "storageAccountName": "[tolower(concat('rdsa',uniqueString(resourceGroup().id)))]",
     "storageAccountType": "Standard_LRS",
-    "uniqueStorageAccountContainerName": "[tolower(concat('sc', uniqueString(resourceGroup().id)))]",
     "imagePublisher": "MicrosoftWindowsServer",
     "imageOffer": "WindowsServer",
     "rdshimagePublisher": "microsoft-ads",
@@ -284,27 +284,36 @@
       }
     },
     {
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2016-04-30-preview",
       "type": "Microsoft.Compute/availabilitySets",
       "name": "gw-availabilityset",
       "location": "[resourceGroup().location]",
       "properties": {
+        "platformFaultDomainCount": "2",
+        "platformUpdateDomainCount": "2",
+        "managed": "true"
       }
     },
     {
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2016-04-30-preview",
       "type": "Microsoft.Compute/availabilitySets",
       "name": "cb-availabilityset",
       "location": "[resourceGroup().location]",
       "properties": {
+        "platformFaultDomainCount": "2",
+        "platformUpdateDomainCount": "2",
+        "managed": "true"
       }
     },
     {
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2016-04-30-preview",
       "type": "Microsoft.Compute/availabilitySets",
       "name": "rdsh-availabilityset",
       "location": "[resourceGroup().location]",
       "properties": {
+        "platformFaultDomainCount": "2",
+        "platformUpdateDomainCount": "2",
+        "managed": "true"
       }
     },
     {
@@ -710,6 +719,12 @@
               "id": "[resourceId('Microsoft.Network/networkInterfaces','gw-nic')]"
             }
           ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": "true",
+            "storageUri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net')]"
+          }
         }
       },
       "resources": [
@@ -797,6 +812,12 @@
               "id": "[resourceId('Microsoft.Network/networkInterfaces',concat('rdsh-', copyindex(), '-nic'))]"
             }
           ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": "true",
+            "storageUri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net')]"
+          }
         }
       },
       "resources": [
@@ -834,7 +855,7 @@
       ]
     },
     {
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2016-04-30-preview",
       "type": "Microsoft.Compute/virtualMachines",
       "name": "cb-vm",
       "location": "[resourceGroup().location]",
@@ -863,14 +884,13 @@
             "sku": "[parameters('imageSKU')]",
             "version": "latest"
           },
-          "osDisk": {
-            "name": "osdisk",
-            "vhd": {
-              "uri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName')),providers('Microsoft.Storage', 'storageAccounts').apiVersions[0]).primaryEndpoints.blob,variables('uniqueStorageAccountContainerName'),'/','cb-vm-os-disk.vhd')]"
-            },
-            "caching": "ReadWrite",
-            "createOption": "FromImage"
-          }
+            "osDisk": {
+                "createOption": "FromImage",
+                "caching": "ReadWrite",
+                "managedDisk": {
+                    "storageAccountType": "Standard_LRS"
+                }
+            }
         },
         "networkProfile": {
           "networkInterfaces": [
@@ -878,13 +898,19 @@
               "id": "[resourceId('Microsoft.Network/networkInterfaces','cb-nic')]"
             }
           ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": "true",
+            "storageUri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net')]"
+          }
         }
       }
     },
     {
       "type": "Microsoft.Compute/virtualMachines/extensions",
       "name": "cb-vm/rdsdeployment",
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2016-04-30-preview",
       "location": "[resourceGroup().location]",
       "dependsOn": [
         "[resourceId('Microsoft.Compute/virtualMachines', 'cb-vm')]",
