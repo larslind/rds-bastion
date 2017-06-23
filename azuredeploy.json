@@ -86,13 +86,28 @@
         "description": "The size of the RDSH VMs"
       },
       "defaultValue": "Standard_D2_v2"
+    },
+    "rdshStorageAccountType": {
+      "type": "string",
+      "allowedValues": [
+        "Standard_LRS",
+        "Premium_LRS"
+      ],
+      "metadata": {
+        "description": "The storage account type of the RDSH VMs"
+      },
+      "defaultValue": "Premium_LRS"
     }
   },
   "variables": {
     "adAssetLocation": "https://raw.githubusercontent.com/Azure/AzureStack-QuickStart-Templates/master/ad-non-ha",
     "adVMSize": "Standard_D1_v2",
+    "adStorageAccountName": "[tolower(concat('rdsa',uniqueString(resourceGroup().id)))]",
+    "adStorageAccountType": "Premium_LRS",
     "cbVMSize": "Standard_D1_v2",
+    "cbStorageAccountType": "Premium_LRS",
     "gwVMSize": "Standard_D1_v2",
+    "gwStorageAccountType": "Premium_LRS",
     "adVnetName": "[concat('ADVNET',resourceGroup().name)]",
     "adSubnetName": "[concat('ADStaticSubnet',resourceGroup().name)]",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('adVnetName'))]",
@@ -126,8 +141,8 @@
     "gwlbBE": "GWLBBE",
     "gwBEAddressPoolID": "[concat(variables('gwlbID'),'/backendAddressPools/',variables('gwlbBE'))]",
     "dnsLabelPrefix": "[tolower(concat('adns', resourceGroup().name))]",
-    "storageAccountName": "[tolower(concat('rdsa',uniqueString(resourceGroup().id)))]",
-    "storageAccountType": "Standard_LRS",
+    "diagStorageAccountName": "[tolower(concat('rddiagsa',uniqueString(resourceGroup().id)))]",
+    "diagStorageAccountType": "Standard_LRS",
     "imagePublisher": "MicrosoftWindowsServer",
     "imageOffer": "WindowsServer",
     "rdshimagePublisher": "microsoft-ads",
@@ -709,7 +724,10 @@
           },
             "osDisk": {
                 "createOption": "FromImage",
-                "caching": "ReadWrite"
+                "caching": "ReadWrite",
+                "managedDisk": {
+                  "storageAccountType": "[variables('gwStorageAccountType')]"
+                }
             }
         },
         "networkProfile": {
@@ -803,7 +821,11 @@
           },
             "osDisk": {
                 "createOption": "FromImage",
-                "caching": "ReadWrite"
+                "caching": "ReadWrite",
+                "managedDisk": {
+                  "storageAccountType": "[parameters('rdshStorageAccountType')]"
+            }
+
             },
             "dataDisks": []
         },
@@ -887,7 +909,10 @@
           },
             "osDisk": {
                 "createOption": "FromImage",
-                "caching": "ReadWrite"
+                "caching": "ReadWrite",
+                "managedDisk": {
+                  "storageAccountType": "[variables('cbStorageAccountType')]"
+                }
             }
         },
         "networkProfile": {
