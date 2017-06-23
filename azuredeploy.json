@@ -76,16 +76,16 @@
         "Standard_A5_v2",
         "Standard_A6_v2",
         "Standard_A7_v2",
-        "Standard_D1_v2",
-        "Standard_D2_v2",
-        "Standard_D3_v2",
-        "Standard_D4_v2",
-        "Standard_D5_v2"
+        "Standard_DS1_v2",
+        "Standard_DS2_v2",
+        "Standard_DS3_v2",
+        "Standard_DS4_v2",
+        "Standard_DS5_v2"
       ],
       "metadata": {
         "description": "The size of the RDSH VMs"
       },
-      "defaultValue": "Standard_D2_v2"
+      "defaultValue": "Standard_DS2_v2"
     },
     "rdshStorageAccountType": {
       "type": "string",
@@ -101,11 +101,11 @@
   },
   "variables": {
     "adAssetLocation": "https://raw.githubusercontent.com/Azure/AzureStack-QuickStart-Templates/master/ad-non-ha",
-    "adVMSize": "Standard_D1_v2",
+    "adVMSize": "Standard_DS1_v2",
     "adStorageAccountType": "Premium_LRS",
-    "cbVMSize": "Standard_D1_v2",
+    "cbVMSize": "Standard_DS1_v2",
     "cbStorageAccountType": "Premium_LRS",
-    "gwVMSize": "Standard_D1_v2",
+    "gwVMSize": "Standard_DS1_v2",
     "gwStorageAccountType": "Premium_LRS",
     "adVnetName": "[concat('ADVNET',resourceGroup().name)]",
     "adSubnetName": "[concat('ADStaticSubnet',resourceGroup().name)]",
