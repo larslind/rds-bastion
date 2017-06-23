@@ -2,13 +2,6 @@
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "gwpublicIPAddressName": {
-      "type": "string",
-      "metadata": {
-        "description": "The name of gateway PublicIPAddress object"
-      },
-      "defaultValue": "gwpip"
-    },
     "adDomainName": {
       "type": "string",
       "metadata": {
@@ -30,18 +23,128 @@
       },
       "defaultValue": "[concat('Subscription#',subscription().subscriptionId)]"
     },
+    "imageSKU": {
+      "type": "string",
+      "allowedValues": [
+        "2012-R2-Datacenter",
+        "2016-Datacenter"
+      ],
+      "metadata": {
+        "description": "Windows server SKU"
+      },
+      "defaultValue": "2016-Datacenter"
+    },
+    "rdshimageSKU": {
+      "type": "string",
+      "allowedValues": [
+        "windows2016"
+      ],
+      "metadata": {
+        "description": "Data Science server SKU"
+      },
+      "defaultValue": "windows2016"
+    },
     "numberOfRdshInstances": {
       "type": "int",
       "defaultValue": 1,
       "metadata": {
         "description": "Number of RemoteDesktopSessionHosts"
       }
+    },
+    "rdshVmSize": {
+      "type": "string",
+      "allowedValues": [
+        "Standard_A0_v2",
+        "Standard_A1_v2",
+        "Standard_A2_v2",
+        "Standard_A3_v2",
+        "Standard_A4_v2",
+        "Standard_A5_v2",
+        "Standard_A6_v2",
+        "Standard_A7_v2",
+        "Standard_DS1_v2",
+        "Standard_DS2_v2",
+        "Standard_DS3_v2",
+        "Standard_DS4_v2",
+        "Standard_DS5_v2"
+      ],
+      "metadata": {
+        "description": "The size of the RDSH VMs"
+      },
+      "defaultValue": "Standard_DS2_v2"
+    },
+    "rdshStorageAccountType": {
+      "type": "string",
+      "allowedValues": [
+        "Standard_LRS",
+        "Premium_LRS"
+      ],
+      "metadata": {
+        "description": "The storage account type of the RDSH VMs"
+      },
+      "defaultValue": "Premium_LRS"
     }
   },
   "variables": {
+    "cbVMSize": "Standard_DS1_v2",
+    "cbStorageAccountType": "Premium_LRS",
+    "gwVMSize": "Standard_DS1_v2",
+    "gwStorageAccountType": "Premium_LRS",
+    "diagStorageAccountName": "rddiagsawdhq3wbier76i",
+    "imagePublisher": "MicrosoftWindowsServer",
+    "imageOffer": "WindowsServer",
+    "rdshimagePublisher": "microsoft-ads",
+    "rdshimageOffer": "windows-data-science-vm",
     "assetLocation": "https://raw.githubusercontent.com/larslind/rds-bastion/master"
   },
   "resources": [
+    {
+      "apiVersion": "2016-04-30-preview",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "gw-vm",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('gwVMSize')]"
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets', 'gw-availabilityset')]"
+        },
+        "osProfile": {
+          "computerName": "gateway",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('imagePublisher')]",
+            "offer": "[variables('imageOffer')]",
+            "sku": "[parameters('imageSKU')]",
+            "version": "latest"
+          },
+            "osDisk": {
+                "createOption": "FromImage",
+                "caching": "ReadWrite",
+                "managedDisk": {
+                  "storageAccountType": "[variables('gwStorageAccountType')]"
+                }
+            }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces','gw-nic')]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": "true",
+            "storageUri": "[concat('http://',variables('diagStorageAccountName'),'.blob.core.windows.net')]"
+          }
+        }
+      },
+      "resources": [
         {
           "apiVersion": "2016-04-30-preview",
           "type": "Microsoft.Compute/virtualMachines/extensions",
@@ -72,7 +175,70 @@
               }
             }
           }
+        }
+      ]
+    },
+    {
+      "apiVersion": "2016-04-30-preview",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[concat('rdsh-', copyindex())]",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "rdsh-vm-loop",
+        "count": "[parameters('numberOfRdshInstances')]"
+      },
+      "plan": {
+          "name": "[parameters('rdshimageSKU')]",
+          "publisher": "[variables('rdshimagePublisher')]",
+          "product": "[variables('rdshimageOffer')]"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('rdshVmSize')]"
         },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets', 'rdsh-availabilityset')]"
+        },
+        "osProfile": {
+          "computerName": "[concat('rdsh-', copyIndex())]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVmAgent": "true"
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('rdshimagePublisher')]",
+            "offer": "[variables('rdshimageOffer')]",
+            "sku": "[parameters('rdshimageSKU')]",
+            "version": "latest"
+          },
+            "osDisk": {
+                "createOption": "FromImage",
+                "caching": "ReadWrite",
+                "managedDisk": {
+                  "storageAccountType": "[parameters('rdshStorageAccountType')]"
+            }
+
+            },
+            "dataDisks": []
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat('rdsh-', copyindex(), '-nic'))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": "true",
+            "storageUri": "[concat('http://',variables('diagStorageAccountName'),'.blob.core.windows.net')]"
+          }
+        }
+      },
+      "resources": [
         {
           "apiVersion": "2016-04-30-preview",
           "type": "Microsoft.Compute/virtualMachines/extensions",
@@ -104,15 +270,64 @@
             }
           }
         }
-    ,
+      ]
+    },
+    {
+      "apiVersion": "2016-04-30-preview",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "cb-vm",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "rdsh-vm-loop"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('cbVMSize')]"
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets', 'cb-availabilityset')]"
+        },
+        "osProfile": {
+          "computerName": "rdp",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('imagePublisher')]",
+            "offer": "[variables('imageOffer')]",
+            "sku": "[parameters('imageSKU')]",
+            "version": "latest"
+          },
+            "osDisk": {
+                "createOption": "FromImage",
+                "caching": "ReadWrite",
+                "managedDisk": {
+                  "storageAccountType": "[variables('cbStorageAccountType')]"
+                }
+            }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces','cb-nic')]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": "true",
+            "storageUri": "[concat('http://',variables('diagStorageAccountName'),'.blob.core.windows.net')]"
+          }
+        }
+      }
+    },
     {
       "type": "Microsoft.Compute/virtualMachines/extensions",
       "name": "cb-vm/rdsdeployment",
       "apiVersion": "2016-04-30-preview",
       "location": "[resourceGroup().location]",
       "dependsOn": [
-        "[resourceId('Microsoft.Compute/virtualMachines', 'cb-vm')]",
-        "Microsoft.Compute/virtualMachines/gw-vm/extensions/gateway",
         "rdsh-vm-loop"
       ],
       "properties": {
@@ -133,7 +348,7 @@
             },
             "connectionBroker": "[concat('rdp.',parameters('adDomainName'))]",
             "domainName": "[parameters('adDomainName')]",
-            "externalfqdn": "[reference(parameters('gwpublicIPAddressName')).dnsSettings.fqdn]",
+            "externalfqdn": "larslindrdsdemo.westeurope.cloudapp.azure.com",
             "numberOfRdshInstances": "[parameters('numberOfRdshInstances')]",
             "sessionHostNamingPrefix": "rdsh-",
             "webAccessServer": "[concat('gateway.',parameters('adDomainName'))]"
