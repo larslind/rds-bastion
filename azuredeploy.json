@@ -175,19 +175,6 @@
       "properties": {
         "securityRules": [
           {
-              "name": "DenyAllInboundVNet",
-              "properties": {
-                  "protocol": "*",
-                  "sourcePortRange": "*",
-                  "destinationPortRange": "*",
-                  "sourceAddressPrefix": "VirtualNetwork",
-                  "destinationAddressPrefix": "*",
-                  "access": "Deny",
-                  "priority": 200,
-                  "direction": "Inbound"
-              }
-          },
-          {
               "name": "AllowHTTPSInternet",
               "properties": {
                   "protocol": "Tcp",

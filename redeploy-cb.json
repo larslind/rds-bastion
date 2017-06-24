@@ -23,6 +23,17 @@
       },
       "defaultValue": "[concat('Subscription#',subscription().subscriptionId)]"
     },
+    "imageSKU": {
+      "type": "string",
+      "allowedValues": [
+        "2012-R2-Datacenter",
+        "2016-Datacenter"
+      ],
+      "metadata": {
+        "description": "Windows server SKU"
+      },
+      "defaultValue": "2016-Datacenter"
+    },
     "numberOfRdshInstances": {
       "type": "int",
       "defaultValue": 1,
@@ -32,70 +43,69 @@
     }
   },
   "variables": {
+    "cbVMSize": "Standard_DS1_v2",
+    "cbStorageAccountType": "Premium_LRS",
+    "diagStorageAccountName": "rddiagsawdhq3wbier76i",
+    "imagePublisher": "MicrosoftWindowsServer",
+    "imageOffer": "WindowsServer",
     "assetLocation": "https://raw.githubusercontent.com/larslind/rds-bastion/master"
   },
   "resources": [
     {
-        "apiVersion": "2016-04-30-preview",
-        "type": "Microsoft.Compute/virtualMachines/extensions",
-        "name": "gw-vm/gateway",
-        "location": "[resourceGroup().location]",
-        "properties": {
-        "publisher": "Microsoft.Powershell",
-        "type": "DSC",
-        "typeHandlerVersion": "2.11",
-        "autoUpgradeMinorVersion": true,
-        "settings": {
-            "modulesUrl": "[concat(variables('assetLocation'),'/Configuration.zip')]",
-            "configurationFunction": "Configuration.ps1\\Gateway",
-            "Properties": {
-            "DomainName": "[parameters('adDomainName')]",
-            "AdminCreds": {
-                "UserName": "[parameters('adminUsername')]",
-                "Password": "PrivateSettingsRef:AdminPassword"
-            }
+      "apiVersion": "2016-04-30-preview",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "cb-vm",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('cbVMSize')]"
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets', 'cb-availabilityset')]"
+        },
+        "osProfile": {
+          "computerName": "rdp",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('imagePublisher')]",
+            "offer": "[variables('imageOffer')]",
+            "sku": "[parameters('imageSKU')]",
+            "version": "latest"
+          },
+            "osDisk": {
+                "createOption": "FromImage",
+                "caching": "ReadWrite",
+                "managedDisk": {
+                  "storageAccountType": "[variables('cbStorageAccountType')]"
+                }
             }
         },
-        "protectedSettings": {
-            "Items": {
-            "AdminPassword": "[parameters('adminPassword')]"
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces','cb-nic')]"
             }
-        }
-        }
-    },
-    {
-        "apiVersion": "2016-04-30-preview",
-        "type": "Microsoft.Compute/virtualMachines/extensions",
-        "name": "[concat('rdsh-0','/sessionhost')]",
-        "location": "[resourceGroup().location]",
-        "properties": {
-        "publisher": "Microsoft.Powershell",
-        "type": "DSC",
-        "typeHandlerVersion": "2.11",
-        "autoUpgradeMinorVersion": true,
-        "settings": {
-            "ModulesUrl": "[concat(variables('assetLocation'),'/Configuration.zip')]",
-            "ConfigurationFunction": "Configuration.ps1\\SessionHost",
-            "Properties": {
-            "DomainName": "[parameters('adDomainName')]",
-            "AdminCreds": {
-                "UserName": "[parameters('adminUsername')]",
-                "Password": "PrivateSettingsRef:AdminPassword"
-            }
-            }
+          ]
         },
-        "protectedSettings": {
-            "Items": {
-            "AdminPassword": "[parameters('adminPassword')]"
-            }
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": "true",
+            "storageUri": "[concat('http://',variables('diagStorageAccountName'),'.blob.core.windows.net')]"
+          }
         }
-        }
+      }
     },
     {
       "type": "Microsoft.Compute/virtualMachines/extensions",
       "name": "cb-vm/rdsdeployment",
       "apiVersion": "2016-04-30-preview",
       "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', 'cb-vm')]"
+      ],
       "properties": {
         "autoUpgradeMinorVersion": true,
         "protectedSettings": {
